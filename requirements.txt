@@ -1,0 +1,4 @@
+roboflow
+requests
+python-dotenv
+tqdm
