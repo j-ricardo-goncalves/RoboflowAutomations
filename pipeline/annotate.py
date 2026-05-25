@@ -61,7 +61,7 @@ def annotate(model, images: list) -> list:
             img_h = raw.get("image", {}).get("height")
             txt_path = os.path.join(config.WORKING_DIR, f"{base_name}.txt")
             if not config.DRY_RUN:
-                convert_to_yolo(predictions, img_w, img_h, txt_path)
+                convert_to_yolo(predictions, float(img_w), float(img_h), txt_path)
             result["txt_path"] = txt_path
 
         annotated.append(result)

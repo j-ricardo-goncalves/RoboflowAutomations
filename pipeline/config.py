@@ -1,34 +1,49 @@
 from dotenv import load_dotenv
 from consts import VALID_ANNOTATION_FORMATS, ANNOTATION_FORMAT_BOTH
 import os
+import json
 
 load_dotenv()  # only called here — every other file imports this module
 
+
+def _get(key: str, default: str = None) -> str:
+    """Get env var and strip whitespace — prevents inline comment bleed."""
+    val = os.environ.get(key, default) if default is not None else os.environ[key]
+    return val.strip() if val else val
+
+
 # ── required ──────────────────────────────────────────────────────────────────
-API_KEY            = os.environ["ROBOFLOW_API_KEY"]
-WORKSPACE          = os.environ["ROBOFLOW_WORKSPACE"]
-PROJECT            = os.environ["ROBOFLOW_PROJECT"]
+API_KEY            = _get("ROBOFLOW_API_KEY")
+WORKSPACE          = _get("ROBOFLOW_WORKSPACE")
+PROJECT            = _get("ROBOFLOW_PROJECT")
 
 # model can live in a different project — falls back to same project if not set
-MODEL_WORKSPACE    = os.getenv("ROBOFLOW_MODEL_WORKSPACE") or WORKSPACE
-MODEL_PROJECT      = os.getenv("ROBOFLOW_MODEL_PROJECT")   or PROJECT
-MODEL_VERSION      = int(os.getenv("ROBOFLOW_MODEL_VERSION", "1"))
+MODEL_WORKSPACE    = _get("ROBOFLOW_MODEL_WORKSPACE", WORKSPACE) or WORKSPACE
+MODEL_PROJECT      = _get("ROBOFLOW_MODEL_PROJECT",   PROJECT)   or PROJECT
+MODEL_VERSION      = int(_get("ROBOFLOW_MODEL_VERSION", "1"))
 
 # ── inference ─────────────────────────────────────────────────────────────────
-CONFIDENCE         = int(os.getenv("CONFIDENCE_THRESHOLD", "40"))   # 0–100
-IOU                = int(os.getenv("IOU_THRESHOLD", "30"))           # 0–100
+CONFIDENCE         = int(_get("CONFIDENCE_THRESHOLD", "40"))   # 0–100
+IOU                = int(_get("IOU_THRESHOLD", "30"))           # 0–100
 
 # ── fetch ─────────────────────────────────────────────────────────────────────
-LOCAL_IMAGE_DIR    = os.getenv("LOCAL_IMAGE_DIR", "").strip() or None
-MAX_IMAGES         = int(os.getenv("MAX_IMAGES", "0"))               # 0 = no limit
+LOCAL_IMAGE_DIR    = _get("LOCAL_IMAGE_DIR", "") or None
+MAX_IMAGES         = int(_get("MAX_IMAGES", "0"))               # 0 = no limit
 
 # ── output ────────────────────────────────────────────────────────────────────
-ANNOTATION_FORMAT  = os.getenv("ANNOTATION_FORMAT", ANNOTATION_FORMAT_BOTH).lower()
-WORKING_DIR        = os.getenv("WORKING_DIR", "/tmp/a2")
+ANNOTATION_FORMAT  = _get("ANNOTATION_FORMAT", ANNOTATION_FORMAT_BOTH).lower()
+WORKING_DIR        = _get("WORKING_DIR", "/tmp/a2")
+
+# ── class mapping ─────────────────────────────────────────────────────────────
+# maps model class IDs to target project class IDs when projects have
+# different class orderings. e.g. CLASS_MAP={"0":"4","1":"1","2":"0","3":"3","4":"2"}
+# leave empty ({}) if both projects have the same class order
+_class_map_raw     = _get("CLASS_MAP", "{}")
+CLASS_MAP          = {int(k): int(v) for k, v in json.loads(_class_map_raw).items()}
 
 # ── pipeline behaviour ────────────────────────────────────────────────────────
-UPLOAD_ANNOTATIONS = os.getenv("UPLOAD_ANNOTATIONS", "true").lower()  == "true"
-DRY_RUN            = os.getenv("DRY_RUN", "false").lower() == "true"
+UPLOAD_ANNOTATIONS = True # _get("UPLOAD_ANNOTATIONS", "true").lower() == "true"
+DRY_RUN            = _get("DRY_RUN", "false").lower() == "true"
 
 # ── validation ────────────────────────────────────────────────────────────────
 if ANNOTATION_FORMAT not in VALID_ANNOTATION_FORMATS:
