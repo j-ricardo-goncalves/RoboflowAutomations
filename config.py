@@ -54,3 +54,6 @@ if not (0 <= CONFIDENCE <= 100):
     raise ValueError(f"CONFIDENCE_THRESHOLD must be 0–100, got {CONFIDENCE}")
 if not (0 <= IOU <= 100):
     raise ValueError(f"IOU_THRESHOLD must be 0–100, got {IOU}")
+
+# Local Inference
+MODEL_WEIGHTS = _get("MODEL_WEIGHTS_PATH", "/tmp/weights/best.pt")

@@ -1,6 +1,6 @@
 import config
 from fetcher   import fetch_images
-from annotate  import load_model, annotate
+from annotate  import load_model, build_class_map, annotate
 from uploader  import get_project, upload_annotations
 
 
@@ -12,31 +12,27 @@ def main():
     if config.DRY_RUN:
         print("[main] DRY RUN — no files will be written, no uploads will happen")
 
-    print(f"[main] inference project : {config.MODEL_PROJECT} v{config.MODEL_VERSION}")
+    print(f"[main] inference model   : {config.MODEL_WEIGHTS}")
+    print(f"[main] model project     : {config.MODEL_PROJECT}")
     print(f"[main] target project    : {config.PROJECT}")
     print(f"[main] confidence        : {config.CONFIDENCE}")
-    print(f"[main] iou threshold     : {config.IOU}")
     print(f"[main] annotation format : {config.ANNOTATION_FORMAT}")
     print(f"[main] upload back       : {config.UPLOAD_ANNOTATIONS}")
     print(f"[main] local image dir   : {config.LOCAL_IMAGE_DIR or 'none (fetching from Roboflow)'}")
     print()
 
-    # authenticate early — fail fast before any work starts
-    project = get_project()
+    # fail fast — authenticate and load model before doing any work
+    project   = get_project()
+    model     = load_model()
+    class_map = build_class_map()
 
-    # load hosted model from Roboflow
-    model = load_model()
-
-    # stage 1: get images (local folder or fetch from Roboflow)
-    images = fetch_images()
+    images    = fetch_images()
     if not images:
         print("[main] no images to process, exiting")
         return
 
-    # stage 2: run inference + write annotation files
-    annotated = annotate(model, images)
+    annotated = annotate(model, images, class_map)
 
-    # stage 3: upload back to Roboflow (optional)
     results = {"uploaded": 0, "skipped": 0, "failed": 0}
     if config.UPLOAD_ANNOTATIONS:
         results = upload_annotations(project, annotated)
