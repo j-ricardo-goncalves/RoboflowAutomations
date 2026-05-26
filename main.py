@@ -24,7 +24,7 @@ def main():
     # fail fast — authenticate and load model before doing any work
     project   = get_project()
     model     = load_model()
-    class_map = build_class_map()
+    class_map = build_class_map(model)
 
     images    = fetch_images()
     if not images:
