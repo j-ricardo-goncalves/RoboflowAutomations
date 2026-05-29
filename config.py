@@ -12,10 +12,18 @@ def _get(key: str, default: str = None) -> str:
     return val.strip() if val else val
 
 
-# ── required ──────────────────────────────────────────────────────────────────
-API_KEY            = _get("ROBOFLOW_API_KEY")
-WORKSPACE          = _get("ROBOFLOW_WORKSPACE")
-PROJECT            = _get("ROBOFLOW_PROJECT")
+def _get_list(key: str) -> list[str]:
+    val = _get(key, "")
+    if not val:
+        return []
+    return [item.strip() for item in val.split(",") if item.strip()]
+
+
+# ── Roboflow settings ─────────────────────────────────────────────────────────
+# Only required when fetching from Roboflow or uploading annotations.
+API_KEY            = _get("ROBOFLOW_API_KEY", "")
+WORKSPACE          = _get("ROBOFLOW_WORKSPACE", "")
+PROJECT            = _get("ROBOFLOW_PROJECT", "")
 
 # model can live in a different project — falls back to same project if not set
 MODEL_WORKSPACE    = _get("ROBOFLOW_MODEL_WORKSPACE", WORKSPACE) or WORKSPACE
@@ -42,8 +50,20 @@ _class_map_raw     = _get("CLASS_MAP", "{}")
 CLASS_MAP          = {int(k): int(v) for k, v in json.loads(_class_map_raw).items()}
 
 # ── pipeline behaviour ────────────────────────────────────────────────────────
-UPLOAD_ANNOTATIONS = True # _get("UPLOAD_ANNOTATIONS", "true").lower() == "true"
+RUN_INFERENCE      = _get("RUN_INFERENCE", "true").lower() == "true"
+UPLOAD_ANNOTATIONS = _get("UPLOAD_ANNOTATIONS", "true").lower() == "true"
 DRY_RUN            = _get("DRY_RUN", "false").lower() == "true"
+RENDER_ANNOTATED_IMAGES = _get("RENDER_ANNOTATED_IMAGES", "false").lower() == "true"
+ANNOTATED_IMAGE_DIR = _get(
+    "ANNOTATED_IMAGE_DIR",
+    os.path.join(WORKING_DIR, "annotated_images"),
+)
+WRITE_RUN_MANIFEST = _get("WRITE_RUN_MANIFEST", "true").lower() == "true"
+RUN_MANIFEST_PATH = _get("RUN_MANIFEST_PATH", os.path.join(WORKING_DIR, "run_manifest.json"))
+UPLOAD_TAGS = _get_list("UPLOAD_TAGS")
+SKIPPED_UPLOAD_TAGS = _get_list("SKIPPED_UPLOAD_TAGS") or UPLOAD_TAGS
+UPLOAD_BATCH_NAME = _get("UPLOAD_BATCH_NAME", "") or None
+UPLOAD_SKIPPED_IMAGES = _get("UPLOAD_SKIPPED_IMAGES", "false").lower() == "true"
 
 # ── validation ────────────────────────────────────────────────────────────────
 if ANNOTATION_FORMAT not in VALID_ANNOTATION_FORMATS:

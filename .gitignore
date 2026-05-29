@@ -1,2 +1,4 @@
 .env
 model/*
+__pycache__/
+frames*/

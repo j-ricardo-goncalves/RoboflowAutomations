@@ -10,7 +10,8 @@ RUN apt-get update && apt-get install -y libgl1 libglib2.0-0 && rm -rf /var/lib/
 # copy source
 COPY . .
 
-ENV PYTHONPATH=/a2/pipeline
+ENV PYTHONPATH=/a2
+ENV PYTHONDONTWRITEBYTECODE=1
 
 # /tmp/a2 is the default WORKING_DIR — override with env var if needed
 # mount a local image folder here to skip fetching from Roboflow:

@@ -6,6 +6,7 @@ import config
 from utils import dump_to_json
 from consts import ANNOTATION_FORMAT_JSON, ANNOTATION_FORMAT_YOLO, ANNOTATION_FORMAT_BOTH
 from converter import convert_to_yolo
+from visualizer import save_annotated_image
 
 
 def load_model():
@@ -60,6 +61,7 @@ def annotate(model, images: list, class_map: dict) -> list:
     """
     os.makedirs(config.WORKING_DIR, exist_ok=True)
     annotated = []
+    skipped = []
 
     for img in tqdm(images, desc="annotating"):
         try:
@@ -77,7 +79,9 @@ def annotate(model, images: list, class_map: dict) -> list:
                     continue
 
                 pred = {
-                    "class_id":   target_class_id,
+                    "class_id": target_class_id,
+                    "model_class_id": model_class_id,
+                    "class_name": model.names.get(model_class_id, str(model_class_id)),
                     "confidence": float(box.conf[0]),
                 }
 
@@ -97,10 +101,12 @@ def annotate(model, images: list, class_map: dict) -> list:
 
         except Exception as e:
             print(f"[annotate] inference failed on {img['name']}: {e}")
+            skipped.append({**img, "reason": f"inference failed: {e}"})
             continue
 
         if not predictions:
             print(f"[annotate] no detections in {img['name']}, skipping")
+            skipped.append({**img, "reason": "no detections after confidence/class filtering"})
             continue
 
         base_name   = os.path.splitext(img["name"])[0]
@@ -118,7 +124,40 @@ def annotate(model, images: list, class_map: dict) -> list:
                 convert_to_yolo(predictions, img_w, img_h, txt_path)
             result_dict["txt_path"] = txt_path
 
+        if config.RENDER_ANNOTATED_IMAGES:
+            preview_path = os.path.join(config.ANNOTATED_IMAGE_DIR, img["name"])
+            if not config.DRY_RUN:
+                save_annotated_image(img["path"], predictions, model.names, preview_path)
+            result_dict["preview_path"] = preview_path
+
         annotated.append(result_dict)
         print(f"[annotate] {img['name']}: {len(predictions)} detections")
 
+    if config.WRITE_RUN_MANIFEST and not config.DRY_RUN:
+        _write_run_manifest(images, annotated, skipped)
+
     return annotated
+
+
+def _write_run_manifest(images: list, annotated: list, skipped: list) -> None:
+    manifest = {
+        "total": len(images),
+        "annotated_count": len(annotated),
+        "skipped_count": len(skipped),
+        "annotated": annotated,
+        "skipped": skipped,
+    }
+    dump_to_json(config.RUN_MANIFEST_PATH, manifest)
+
+    skipped_txt_path = os.path.splitext(config.RUN_MANIFEST_PATH)[0] + "_skipped.txt"
+    with open(skipped_txt_path, "w") as f:
+        for img in skipped:
+            f.write(f"{img['path']}\n")
+
+    annotated_txt_path = os.path.splitext(config.RUN_MANIFEST_PATH)[0] + "_annotated.txt"
+    with open(annotated_txt_path, "w") as f:
+        for img in annotated:
+            f.write(f"{img['path']}\n")
+
+    print(f"[annotate] wrote manifest: {config.RUN_MANIFEST_PATH}")
+    print(f"[annotate] wrote skipped list: {skipped_txt_path}")

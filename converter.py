@@ -1,5 +1,4 @@
 from utils import clamp
-import config
 
 
 def _bbox_to_polygon(x: float, y: float, w: float, h: float) -> list:
@@ -32,8 +31,7 @@ def convert_to_yolo(predictions: list, img_w: float, img_h: float, output_path: 
 
     lines = []
     for pred in predictions:
-        raw_class_id = pred.get("class_id", 0)
-        class_id = config.CLASS_MAP.get(raw_class_id, raw_class_id)
+        class_id = pred.get("class_id", 0)
 
         # segmentation model: Roboflow returns "points" list
         # detection model: Roboflow returns center x/y + width/height
