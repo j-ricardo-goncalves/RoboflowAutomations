@@ -26,7 +26,7 @@ docker run --env-file .env -v /path/to/best.pt:/tmp/weights.pt roboflow-automati
 | `ROBOFLOW_API_KEY` | Your Roboflow API key | required |
 | `ROBOFLOW_WORKSPACE` | Workspace name | required |
 | `ROBOFLOW_PROJECT` | Target project name | required |
-| `MODEL_WEIGHTS_PATH` | Path to your YOLO `.pt` file | `/a2/weights.pt` |
+| `MODEL_WEIGHTS_PATH` | Path to your YOLO `.pt` file | `/tmp/weights.pt` |
 | `CONFIDENCE_THRESHOLD` | Minimum confidence (0–100) | `50` |
 | `CLASS_MAP` | Explicit class ID remapping (JSON) | none |
 | `LOCAL_IMAGE_DIR` | Use local images instead of fetching | none |
