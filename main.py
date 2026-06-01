@@ -11,6 +11,8 @@ def _local_class_map(model):
 
 
 def main():
+    config.validate_config()
+
     print("=" * 50)
     print("  roboflow auto-annotate (extended)")
     print("=" * 50)

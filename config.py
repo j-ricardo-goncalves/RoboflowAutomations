@@ -5,19 +5,16 @@ import json
 
 load_dotenv()  # only called here — every other file imports this module
 
-
 def _get(key: str, default: str = None) -> str:
     """Get env var and strip whitespace — prevents inline comment bleed."""
     val = os.environ.get(key, default) if default is not None else os.environ[key]
     return val.strip() if val else val
-
 
 def _get_list(key: str) -> list[str]:
     val = _get(key, "")
     if not val:
         return []
     return [item.strip() for item in val.split(",") if item.strip()]
-
 
 # ── Roboflow settings ─────────────────────────────────────────────────────────
 # Only required when fetching from Roboflow or uploading annotations.
@@ -32,7 +29,6 @@ MODEL_VERSION      = int(_get("ROBOFLOW_MODEL_VERSION", "1"))
 
 # ── inference ─────────────────────────────────────────────────────────────────
 CONFIDENCE         = int(_get("CONFIDENCE_THRESHOLD", "40"))   # 0–100
-IOU                = int(_get("IOU_THRESHOLD", "30"))           # 0–100
 
 # ── fetch ─────────────────────────────────────────────────────────────────────
 LOCAL_IMAGE_DIR    = _get("LOCAL_IMAGE_DIR", "") or None
@@ -64,15 +60,50 @@ SKIPPED_UPLOAD_TAGS = _get_list("SKIPPED_UPLOAD_TAGS") or UPLOAD_TAGS
 UPLOAD_BATCH_NAME = _get("UPLOAD_BATCH_NAME", "") or None
 UPLOAD_SKIPPED_IMAGES = _get("UPLOAD_SKIPPED_IMAGES", "false").lower() == "true"
 
-# ── validation ────────────────────────────────────────────────────────────────
-if ANNOTATION_FORMAT not in VALID_ANNOTATION_FORMATS:
-    raise ValueError(
-        f"ANNOTATION_FORMAT must be one of {VALID_ANNOTATION_FORMATS}, got '{ANNOTATION_FORMAT}'"
-    )
-if not (0 <= CONFIDENCE <= 100):
-    raise ValueError(f"CONFIDENCE_THRESHOLD must be 0–100, got {CONFIDENCE}")
-if not (0 <= IOU <= 100):
-    raise ValueError(f"IOU_THRESHOLD must be 0–100, got {IOU}")
-
 # Local Inference
 MODEL_WEIGHTS = _get("MODEL_WEIGHTS_PATH", "/tmp/weights/best.pt")
+
+# ── validation ────────────────────────────────────────────────────────────────
+def validate_config():
+    errors = []
+
+    if ANNOTATION_FORMAT not in VALID_ANNOTATION_FORMATS:
+        errors.append(
+            f"ANNOTATION_FORMAT must be one of {VALID_ANNOTATION_FORMATS}, "
+            f"got '{ANNOTATION_FORMAT}'"
+        )
+
+    if not (0 <= CONFIDENCE <= 100):
+        errors.append(
+            f"CONFIDENCE_THRESHOLD must be 0–100, got {CONFIDENCE}"
+        )
+
+    if UPLOAD_ANNOTATIONS and not API_KEY:
+        errors.append(
+            "ROBOFLOW_API_KEY is required when UPLOAD_ANNOTATIONS=true"
+        )
+
+    if UPLOAD_ANNOTATIONS and not WORKSPACE:
+        errors.append(
+            "ROBOFLOW_WORKSPACE is required when UPLOAD_ANNOTATIONS=true"
+        )
+
+    if UPLOAD_ANNOTATIONS and not PROJECT:
+        errors.append(
+            "ROBOFLOW_PROJECT is required when UPLOAD_ANNOTATIONS=true"
+        )
+
+    if not os.path.exists(MODEL_WEIGHTS) and RUN_INFERENCE:
+        errors.append(
+            f"MODEL_WEIGHTS_PATH not found at '{MODEL_WEIGHTS}'. "
+            f"Mount with: -v /your/local/best.pt:{MODEL_WEIGHTS}"
+        )
+
+    if errors:
+        print("\n[config] configuration errors found:\n")
+        for e in errors:
+            print(f"  ✗ {e}")
+        print()
+        raise ValueError(f"{len(errors)} configuration error(s) — see above")
+
+    print("[config] configuration valid")
