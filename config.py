@@ -46,8 +46,7 @@ WORKING_DIR        = _get("WORKING_DIR", "/tmp/a2")
 # maps model class IDs to target project class IDs when projects have
 # different class orderings. e.g. CLASS_MAP={"0":"4","1":"1","2":"0","3":"3","4":"2"}
 # leave empty ({}) if both projects have the same class order
-_class_map_raw     = _get("CLASS_MAP", "{}")
-CLASS_MAP          = {int(k): int(v) for k, v in json.loads(_class_map_raw).items()}
+CLASS_MAP          = _get("CLASS_MAP", "") or None
 
 # ── pipeline behaviour ────────────────────────────────────────────────────────
 RUN_INFERENCE      = _get("RUN_INFERENCE", "true").lower() == "true"

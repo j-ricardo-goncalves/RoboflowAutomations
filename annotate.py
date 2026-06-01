@@ -33,25 +33,33 @@ def build_class_map(model):
     rf = Roboflow(api_key=config.API_KEY)
     target_project = rf.workspace(config.WORKSPACE).project(config.PROJECT)
 
-    # model.names: {int -> class_name} — this is the true mapping the model uses
-    model_names = model.names  # e.g. {0: 'obstacle', 1: 'parking', ...}
+    model_names = model.names  # {int -> class_name}
 
-    # target project class list: {name: count}, enumerate keys for positional IDs
-    target_classes = {name: i for i, name in enumerate(target_project.classes)}
+    # If explicit CLASS_MAP provided in config, trust it completely
+    if config.CLASS_MAP:
+        print(f"[annotate] using explicit CLASS_MAP: {config.CLASS_MAP}")
+        return config.CLASS_MAP
 
-    print(f"[annotate] model names  : {model_names}")
-    print(f"[annotate] target classes: {target_classes}")
+    # Auto-build — compare orders before trusting
+    target_class_names = list(target_project.classes.keys())
+    model_name_list = [model_names[i] for i in sorted(model_names.keys())]
 
-    class_map = {}
-    for model_id, name in model_names.items():
-        if name in target_classes:
-            class_map[model_id] = target_classes[name]
-        else:
-            print(f"[annotate] warning: class '{name}' not in target project — will be skipped")
+    print(f"[annotate] model classes   : {model_name_list}")
+    print(f"[annotate] target classes  : {target_class_names}")
 
-    print(f"[annotate] class map: {class_map}")
+    if model_name_list != target_class_names:
+        raise ValueError(
+            f"\n[annotate] Class order mismatch — cannot safely auto-map.\n"
+            f"  Model:  {model_name_list}\n"
+            f"  Target: {target_class_names}\n"
+            f"  Set CLASS_MAP in your .env to fix this.\n"
+            f"  Example: CLASS_MAP={{\"0\":\"2\",\"1\":\"0\",\"2\":\"1\"}}"
+        )
+
+    # Orders match — identity map is safe
+    class_map = {i: i for i in sorted(model_names.keys())}
+    print(f"[annotate] class order matches — identity map: {class_map}")
     return class_map
-
 
 def annotate(model, images: list, class_map: dict) -> list:
     """
