@@ -4,9 +4,32 @@ from roboflow import Roboflow
 import config
 from consts import SUPPORTED_IMAGE_FORMATS
 from utils import get_image_paths
+import time
 
 IMAGE_DETAIL_API = "https://api.roboflow.com/{workspace}/{project}/images/{image_id}"
 
+def _get_with_retry(url: str, retries: int = 3, backoff: float = 2.0) -> requests.Response:
+    """
+    GET a URL with exponential backoff retries.
+    Waits 2s, 4s, 8s between attempts before giving up.
+    """
+    last_error = None
+
+    for attempt in range(1, retries + 1):
+        try:
+            r = requests.get(url, timeout=10)
+            r.raise_for_status()
+            return r
+        except requests.RequestException as e:
+            last_error = e
+            if attempt < retries:
+                wait = backoff ** attempt
+                print(f"[fetcher] attempt {attempt}/{retries} failed, retrying in {wait}s — {e}")
+                time.sleep(wait)
+
+    raise requests.RequestException(
+        f"[fetcher] all {retries} attempts failed: {last_error}"
+    )
 
 def fetch_images() -> list:
     if config.LOCAL_IMAGE_DIR:
@@ -31,12 +54,11 @@ def _get_image_url(image_id: str) -> str | None:
         project=config.PROJECT,
         image_id=image_id
     )
-    r = requests.get(url, params={"api_key": config.API_KEY})
-    if not r.ok:
+    try:
+        r = _get_with_retry(f"{url}?api_key={config.API_KEY}")
+        return r.json().get("image", {}).get("urls", {}).get("original")
+    except requests.RequestException:
         return None
-    # URL lives at image.urls.original
-    return r.json().get("image", {}).get("urls", {}).get("original")
-
 
 def _fetch_from_roboflow() -> list:
     """
@@ -78,12 +100,14 @@ def _fetch_from_roboflow() -> list:
             continue
 
         local_path = os.path.join(config.WORKING_DIR, image_name)
-        r = requests.get(image_url)
-        r.raise_for_status()
-        with open(local_path, "wb") as f:
-            f.write(r.content)
-
-        downloaded.append({"id": image_id, "name": image_name, "path": local_path})
-        print(f"[fetcher] downloaded {image_name}")
+        try:
+            r = _get_with_retry(image_url)
+            with open(local_path, "wb") as f:
+                f.write(r.content)
+            downloaded.append({"id": image_id, "name": image_name, "path": local_path})
+            print(f"[fetcher] downloaded {image_name}")
+        except requests.RequestException as e:
+            print(f"[fetcher] giving up on {image_name} after retries: {e}")
+            continue
 
     return downloaded
